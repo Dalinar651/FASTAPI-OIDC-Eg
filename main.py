@@ -20,9 +20,7 @@ app.include_router(tasks.task_router)
 app.include_router(users.user_router)
 
 
-    # Optionally, add shutdown code here
-
-
+# Optionally, add shutdown code here
 @app.get("/health")
 async def root():
     return {"message": "server is running"}
