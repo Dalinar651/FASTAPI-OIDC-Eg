@@ -1,0 +1,5 @@
+.env
+*.xml
+*.pyc
+*.iml
+pytest.ini
