@@ -26,6 +26,8 @@ class User(BaseModel):
 
 
 class UserInDB(User, SQLModel, table=True):
-    __tablename__ = "user"
+    __tablename__ = "user_model"
     created_at: datetime.datetime = Field(default_factory=_now_utc)
+    class Config:
+        from_attributes = True
 

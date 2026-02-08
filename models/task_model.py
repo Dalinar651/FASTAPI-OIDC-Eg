@@ -13,7 +13,7 @@ def _now_utc() -> datetime.datetime:
 class TaskRequest(SQLModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: str = Field(..., max_length=4000)
-    created_by: str = Field(..., min_length=1)
+    user_id: uuid.UUID
     completed: bool = Field(default=False)
 
     class Config:

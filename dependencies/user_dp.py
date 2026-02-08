@@ -5,15 +5,18 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer
 from sqlalchemy import Select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.annotation import Annotated
 from sqlmodel import col, select
 
 from auth import verify_token
 from database import AsyncSessionDep
 from models.user_model import User, UserInDB
+from services.user_controller import get_or_create_user
 
 security = HTTPBearer()
 
-def get_current_user(creds=Depends(security)):
+
+def get_current_user(creds=Depends(security)) -> dict:
     try:
         payload = verify_token(creds.credentials)
         return payload
@@ -21,26 +24,23 @@ def get_current_user(creds=Depends(security)):
         logging.exception(error)
         raise HTTPException(status_code=401, detail="Invalid token")
 
+async def get_current_user_db(
+    db: AsyncSessionDep,
+    payload: dict = Depends(get_current_user),
+) -> UserInDB:
 
-async def get_or_create_user(payload, db: AsyncSession):
-    result = await db.execute(
-        select(UserInDB).where(
-            col(UserInDB.keycloak_user_id)== payload["sub"]
-        )
-    )
+    return await get_or_create_user(db=db, payload=payload)
 
-    user = result.scalar_one_or_none()
+async def get_current_active_user(
+        current_user: UserInDB = Depends(get_current_user_db)):
 
-    if user is None:
-        user = UserInDB(
-            id=uuid4(),
-            keycloak_user_id=payload["sub"],
-            username=payload["preferred_username"],
-        )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
+    if current_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
 
-    return user
+    if current_user.disabled:
+        raise HTTPException(status_code=400, detail="Inactive user")
+
+    return current_user
 
 
+CurrentActiveUserDp = Annotated[UserInDB,Depends(get_current_active_user)]
