@@ -8,7 +8,7 @@ from auth import verify_token
 from database import  AsyncSessionDep
 from dependencies.user_dp import get_or_create_user, get_current_user
 from models.task_model import Task, TaskRequest
-from models.user_model import UserInDB
+from models.user_model import UserInDB, TokenModel
 
 user_router = APIRouter(
     prefix="/users",
@@ -21,9 +21,9 @@ user_router = APIRouter(
 @user_router.get("/me", response_model=UserInDB)
 async def me(
         db: AsyncSessionDep,
-        payload: dict = Depends(get_current_user),
+        token_model: TokenModel = Depends(get_current_user),
 ):
-    user = await get_or_create_user(payload, db)
+    user = await get_or_create_user(token_model, db)
     return user
 
 

@@ -17,7 +17,7 @@ def verify_token(token: str) -> dict:
         token,
         signing_key.key,
         algorithms=["RS256"],
-        audience=CLIENT_ID,
+        audience="account",
         issuer=ISSUER,
     )
     return payload

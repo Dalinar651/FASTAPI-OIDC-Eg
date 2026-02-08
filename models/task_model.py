@@ -13,7 +13,6 @@ def _now_utc() -> datetime.datetime:
 class TaskRequest(SQLModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: str = Field(..., max_length=4000)
-    user_id: uuid.UUID
     completed: bool = Field(default=False)
 
     class Config:
@@ -28,9 +27,22 @@ class Task(TaskRequest, SQLModel, table=True):
     )
     created_at: datetime.datetime = Field(default_factory=_now_utc)
     updated_at: datetime.datetime = Field(default_factory=_now_utc)
+    user_id: uuid.UUID = Field(foreign_key="user_model.id")
 
     class Config:
         from_attributes = True
+
+class TaskResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: str
+    user_id: uuid.UUID
+    completed: bool
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+
+    class Config:
+        orm_mode = True
 
 
 @event.listens_for(Task, "before_update", propagate=True)

@@ -1,4 +1,5 @@
 import uuid
+from typing import TypeAlias
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +13,7 @@ async def get_all_tasks_by_user(db: AsyncSession,user_id: uuid.UUID, offset: int
     query = select(Task).where(Task.user_id == user_id).order_by(desc(Task.created_at)).offset(offset).limit(
         limit)
     result = await db.execute(query)
-    tasks = result.scalars().all()
+    tasks: list[Task] = result.scalars().all()
 
     return tasks
 
@@ -22,19 +23,15 @@ async def get_task_by_user(
     task_id: uuid.UUID,
     user_id: uuid.UUID,
 ) -> Task:
-    stmt = (
-        select(Task)
-        .where(
-            Task.id == task_id &
-            Task.user_id == user_id,
-        )
-    )
 
-    result = await db.execute(stmt)
-    task = result.scalar_one_or_none()
+
+    task = await db.get(Task, task_id)
 
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    if task.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this task")
 
     return task
 
