@@ -7,7 +7,7 @@ from httpx import ASGITransport
 
 @pytest.fixture
 async def client(app):
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
 
@@ -125,3 +125,49 @@ async def test_validation_errors(client):
 
     resp = await client.get("/tasks/not-a-uuid")
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_global_http_exception_shape(client):
+    resp = await client.get("/tasks/00000000-0000-0000-0000-000000000000")
+    assert resp.status_code == 404
+    body = resp.json()
+    assert body["error"]["code"] == "http_error"
+    assert body["error"]["message"] == "Task not found"
+    assert body["error"]["path"] == "/tasks/00000000-0000-0000-0000-000000000000"
+    assert "timestamp" in body["error"]
+
+
+@pytest.mark.asyncio
+async def test_global_validation_exception_shape(client):
+    resp = await client.get("/tasks/not-a-uuid")
+    assert resp.status_code == 422
+    body = resp.json()
+    assert body["error"]["code"] == "validation_error"
+    assert body["error"]["message"] == "Validation failed"
+    assert body["error"]["path"] == "/tasks/not-a-uuid"
+    assert isinstance(body["error"]["details"], list)
+    assert "timestamp" in body["error"]
+
+
+@pytest.mark.asyncio
+async def test_global_unhandled_exception_shape(client):
+    resp = await client.get("/boom")
+    assert resp.status_code == 500
+    body = resp.json()
+    assert body["error"]["code"] == "internal_server_error"
+    assert body["error"]["message"] == "An unexpected error occurred"
+    assert body["error"]["path"] == "/boom"
+    assert "timestamp" in body["error"]
+
+
+@pytest.mark.asyncio
+async def test_unhandled_exception_is_logged(client, caplog):
+    caplog.set_level("ERROR", logger="app.errors")
+
+    resp = await client.get("/boom")
+    assert resp.status_code == 500
+    assert any(
+        "Unhandled exception encountered" in record.message
+        for record in caplog.records
+    )

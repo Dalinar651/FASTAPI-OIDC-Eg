@@ -12,6 +12,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from database import get_session
+from error_handlers import register_exception_handlers
 from routers import tasks as tasks_router
 
 
@@ -31,7 +32,13 @@ async def app():
             yield session
 
     app = FastAPI()
+    register_exception_handlers(app)
     app.include_router(tasks_router.task_router)
+
+    @app.get("/boom")
+    async def boom():
+        raise RuntimeError("forced failure")
+
     app.dependency_overrides[get_session] = override_get_session
 
     async with engine.begin() as conn:
